@@ -4,13 +4,17 @@ import (
     "fmt"
     "time"
     "sync"
-    "reflect"
 )
 
 type Entry struct {
-    data     interface{}
-    creation time.Time
-    updated  time.Time
+    data       UData
+    creation   time.Time
+    updated    time.Time
+    member_off []byte
+}
+
+type UData interface {
+    getMember(s string) interface{}
 }
 
 type Table struct {
@@ -31,9 +35,9 @@ func (t *Table) GetByField(fieldName string, value interface{}) ([]*Entry, int) 
     amt := 0
 
     for _, v := range t.inmem {
-        field, exists := getField(v.data, fieldName)
+        field := v.data.getMember(fieldName)
 
-        if !exists {
+        if field == nil {
             return nil, -1
         }
 
@@ -46,33 +50,29 @@ func (t *Table) GetByField(fieldName string, value interface{}) ([]*Entry, int) 
     return res, amt
 }
 
-func getField(obj interface{}, fieldName string) (interface{}, bool) {
-	val := reflect.ValueOf(obj)
-
-	if val.Kind() != reflect.Struct {
-		return nil, false
-	}
-
-	field := val.FieldByName(fieldName)
-
-	if !field.IsValid() {
-		return nil, false
-	}
-
-	return field.Interface(), true
-}
-
 // user-defined data here
 type Employee struct {
     Name     string
     Age      int
 }
 
+func (e Employee) getMember(s string) interface{} {
+    switch s {
+    case "Name":
+        return e.Name;
+    case "Age":
+        return e.Age;
+    }
+
+    return nil;
+}
+
+
 func main() {
     table := Table{ inmem: make(map[int64]*Entry) }
 
-    table.Add(&(Entry{ Employee { "albert einstein", 144 }, time.Now(), time.Now() }))
-    table.Add(&(Entry{ Employee { "albert einstein", 10 }, time.Now(), time.Now() }))
+    table.Add(&(Entry{ Employee { "albert einstein", 144 }, time.Now(), time.Now(), make([]byte, 0)}))
+    table.Add(&(Entry{ Employee { "albert einstein", 10 }, time.Now(), time.Now(), make([]byte, 0)}))
 
     query, amt := table.GetByField("Name", "albert einstein")
 
