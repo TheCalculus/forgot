@@ -22,7 +22,7 @@ type Table struct {
     inmem    map[int64]*Entry
     active   int64
 }
-    
+
 func (t *Table) Add(entry *Entry) {
     t.mux.Lock()
     defer t.mux.Unlock()
@@ -30,7 +30,7 @@ func (t *Table) Add(entry *Entry) {
     t.active++
 }
 
-func (t *Table) GetByField(fieldName string, value interface{}) ([]*Entry, int) {
+func (t *Table) GetWhere(fieldName string, value interface{}) ([]*Entry, int) {
     res := make([]*Entry, 0);
     amt := 0
 
@@ -72,12 +72,10 @@ func main() {
     table := Table{ inmem: make(map[int64]*Entry) }
 
     table.Add(&(Entry{ Employee { "albert einstein", 144 }, time.Now(), time.Now(), make([]byte, 0)}))
-    table.Add(&(Entry{ Employee { "albert einstein", 10 }, time.Now(), time.Now(), make([]byte, 0)}))
+    table.Add(&(Entry{ Employee { "albert einstein", 10 },  time.Now(), time.Now(), make([]byte, 0)}))
 
-    query, amt := table.GetByField("Name", "albert einstein")
+    query, amt := table.GetWhere("Name", "albert einstein")
 
-    fmt.Println("found", amt, "entries")
-    
     for _, v := range query {
         fmt.Println(*v)
     }
