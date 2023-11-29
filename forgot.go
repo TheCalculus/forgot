@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -17,9 +17,39 @@ func BasicEntry(data UData) *Entry {
 	return &Entry{data, 0, time.Now(), time.Now()}
 }
 
+func (e *Entry) Copy(dest *Entry) *Entry {
+    e2 := *e
+    if dest != nil { dest = &e2 }
+
+    return &e2
+}
+
 type UData interface {
-	getMember(s string) interface{}
-	isEqualTo(d UData) bool
+//  isEqualTo(d UData) bool
+//  getMember(fieldName string) interface{}
+}
+
+type offset_t struct {
+	Size   uintptr
+	Offset uintptr
+}
+
+type Offset map[string]offset_t
+
+func CalculateOffsets(iface interface{}) Offset {
+	t := reflect.TypeOf(iface)
+	offsets := make(Offset)
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+
+		offset := uintptr(field.Offset)
+		size := uintptr(field.Type.Size())
+
+		offsets[field.Name] = offset_t{Size: size, Offset: offset}
+	}
+
+	return offsets
 }
 
 type Table struct {
@@ -75,50 +105,4 @@ func (t *Table) GetWhere(fieldName string, value interface{}) ([]*Entry, int) {
 	}
 
 	return res, amt
-}
-
-// user-defined data here
-type Employee struct {
-	Name string
-	Age  int
-}
-
-func (e Employee) getMember(s string) interface{} {
-	switch s {
-	case "Name":
-		return e.Name
-	case "Age":
-		return e.Age
-	}
-
-	return nil
-}
-
-func (e Employee) isEqualTo(d UData) bool {
-	if other, ok := d.(Employee); ok {
-		return e.Name == other.Name && e.Age == other.Age
-	}
-	return false
-}
-
-func newEmployee(name string, age int) Employee {
-	return Employee{name, age}
-}
-
-func main() {
-	table := Table{inmem: make(map[int]*Entry)}
-
-	albert := BasicEntry(newEmployee("albert einstein", 144))
-
-	table.Add(albert)
-	table.Add(BasicEntry(newEmployee("albert einstein", 144)))
-	table.Add(BasicEntry(newEmployee("albert einstein", 10)))
-
-	table.Remove(albert, true)
-
-	query, _ := table.GetWhere("Name", "albert einstein")
-
-	for _, v := range query {
-		fmt.Println(*v)
-	}
 }
