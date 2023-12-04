@@ -18,9 +18,7 @@ func main() {
 	table  := Table{inmem: make(map[int]*Entry)}
 	albert := BasicEntry(newEmployee("albert einstein", 144))
 
-	var offsets Offset = CalculateOffsets(Employee{})
-
-	fmt.Println(offsets)
+    table.offsets = CalculateOffsets(Employee{})
 
 	table.Add(albert)
 	table.Add(albert.Copy(nil))
