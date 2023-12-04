@@ -53,9 +53,10 @@ func CalculateOffsets(iface interface{}) Offset {
 }
 
 type Table struct {
-	mux    sync.Mutex
-	inmem  map[int]*Entry
-	active int
+	mux     sync.Mutex
+	inmem   map[int]*Entry
+	active  int
+    offsets Offset 
 }
 
 func (t *Table) Add(entry *Entry) {
@@ -78,9 +79,9 @@ func (t *Table) Remove(entry *Entry, mult bool) {
 	}
 
 	for k, v := range t.inmem {
-		if v.data.isEqualTo(entry.data) {
-			delete(t.inmem, k)
-		}
+        //	if v.data.isEqualTo(entry.data) {
+        //		delete(t.inmem, k)
+        //	}
 	}
 }
 
