@@ -2,11 +2,10 @@ package main
 
 import (
 	"reflect"
+    "unsafe"
 	"sync"
 	"time"
-    "encoding/json"
     "fmt"
-    "unsafe"
 )
 
 type Entry struct {
@@ -89,23 +88,16 @@ func (t *Table) Remove(entry *Entry, mult bool) {
 }
 
 func (u *Entry) getMember(offsets Offset, fieldName string) interface{} {
-	off := offsets[fieldName].Offset
-	siz := offsets[fieldName].Size
+    off := offsets[fieldName].Offset
+    siz := offsets[fieldName].Size
 
-	data := unsafe.Pointer(&u.data)
-	field := unsafe.Pointer(uintptr(data) + off)
+    data := unsafe.Pointer(&u.data)
+    field := unsafe.Pointer(uintptr(data) + uintptr(off))
 
-	fieldSlice := make([]byte, siz)
-    b, err := json.Marshal((*(*interface{})(field)))
+    fieldSlice := make([]byte, siz)
+    copy(fieldSlice, (*[1 << 30]byte)(field)[:siz])
 
-    if err != nil {
-        fmt.Println("SEND HELP PLEASE")
-    }
-
-    copy(fieldSlice, b[:siz])
-    fmt.Println(string(fieldSlice))
-
-	return fieldSlice
+    return fieldSlice
 }
 
 func (t *Table) GetWhere(fieldName string, value interface{}) ([]*Entry, int) {
