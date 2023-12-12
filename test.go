@@ -15,10 +15,10 @@ func newEmployee(name string, age int) Employee {
 }
 
 func main() {
-	table  := Table{inmem: make(map[int]*Entry)}
-	albert := BasicEntry(newEmployee("albert einstein", 144))
+	fmt.Println("forgot")
 
-    table.offsets = CalculateOffsets(Employee{})
+	table := Table{inmem: make(map[int]*Entry)}
+	albert := BasicEntry(newEmployee("albert einstein", 144))
 
 	table.Add(albert)
 	table.Add(albert.Copy(nil))
@@ -29,6 +29,7 @@ func main() {
 	query, _ := table.GetWhere("Name", "albert einstein")
 
 	for _, v := range query {
-		fmt.Println(*v)
+
+		fmt.Println(*v.data)
 	}
 }
