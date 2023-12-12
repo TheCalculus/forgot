@@ -4,62 +4,68 @@ import (
 	"reflect"
 	"sync"
 	"time"
-    "encoding/json"
-    "fmt"
-    "unsafe"
 )
 
+type Entry_t map[string]interface{}
+
 type Entry struct {
-	data     UData
+	data     *Entry_t
 	mapping  int
 	creation time.Time
 	updated  time.Time
 }
 
-func BasicEntry(data UData) *Entry {
-	return &Entry{data, 0, time.Now(), time.Now()}
+func StructToMap(input interface{}) *Entry_t {
+	result := make(Entry_t)
+
+	val := reflect.ValueOf(input)
+
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+
+	if val.Kind() != reflect.Struct {
+		return &result
+	}
+
+	typ := val.Type()
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		fieldName := typ.Field(i).Name
+		result[fieldName] = field.Interface()
+	}
+
+	return &result
+}
+
+func CompareMaps(map1, map2 *Entry_t) bool {
+	return reflect.DeepEqual(map1, map2)
+}
+
+func BasicEntry(data interface{}) *Entry {
+	entryData := StructToMap(data)
+	return &Entry{entryData, 0, time.Now(), time.Now()}
 }
 
 func (e *Entry) Copy(dest *Entry) *Entry {
-    e2 := *e
-    if dest != nil { dest = &e2 }
+	e2 := *e
+	if dest != nil {
+		e2.data = e.data
+		dest.data = &Entry_t{}
 
-    return &e2
-}
-
-type UData interface {
-//  isEqualTo(d UData) bool
-//  getMember(fieldName string) interface{}
-}
-
-type offset_t struct {
-	Size   uintptr
-	Offset uintptr
-}
-
-type Offset map[string]offset_t
-
-func CalculateOffsets(iface interface{}) Offset {
-	t := reflect.TypeOf(iface)
-	offsets := make(Offset)
-
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-
-		offset := uintptr(field.Offset)
-		size := uintptr(field.Type.Size())
-
-		offsets[field.Name] = offset_t{Size: size, Offset: offset}
+		for k, v := range *e.data {
+			(*dest.data)[k] = v
+		}
 	}
 
-	return offsets
+	return &e2
 }
 
 type Table struct {
-	mux     sync.Mutex
-	inmem   map[int]*Entry
-	active  int
-    offsets Offset 
+	mux    sync.Mutex
+	inmem  map[int]*Entry
+	active int
 }
 
 func (t *Table) Add(entry *Entry) {
@@ -81,31 +87,16 @@ func (t *Table) Remove(entry *Entry, mult bool) {
 		return
 	}
 
-//for k, v := range t.inmem {
-//    //	if v.data.isEqualTo(entry.data) {
-//    //		delete(t.inmem, k)
-//    //	}
-//}
+	for k, v := range t.inmem {
+		if CompareMaps(v.data, entry.data) {
+			delete(t.inmem, k)
+			break
+		}
+	}
 }
 
-func (u *Entry) getMember(offsets Offset, fieldName string) interface{} {
-	off := offsets[fieldName].Offset
-	siz := offsets[fieldName].Size
-
-	data := unsafe.Pointer(&u.data)
-	field := unsafe.Pointer(uintptr(data) + off)
-
-	fieldSlice := make([]byte, siz)
-    b, err := json.Marshal((*(*interface{})(field)))
-
-    if err != nil {
-        fmt.Println("SEND HELP PLEASE")
-    }
-
-    copy(fieldSlice, b[:siz])
-    fmt.Println(string(fieldSlice))
-
-	return fieldSlice
+func (u *Entry) getMember(fieldName string) interface{} {
+	return (*u.data)[fieldName]
 }
 
 func (t *Table) GetWhere(fieldName string, value interface{}) ([]*Entry, int) {
@@ -115,18 +106,18 @@ func (t *Table) GetWhere(fieldName string, value interface{}) ([]*Entry, int) {
 	res := make([]*Entry, 0)
 	amt := 0
 
-    for _, v := range t.inmem {
-        field := v.getMember(t.offsets, fieldName)
+	for _, v := range t.inmem {
+		field := v.getMember(fieldName)
 
-        if field == nil {
-            return nil, -1
-        }
+		if field == nil {
+			return nil, -1
+		}
 
-        if field == value {
-            res = append(res, v)
-            amt++
-        }
-    }
+		if field == value {
+			res = append(res, v)
+			amt++
+		}
+	}
 
 	return res, amt
 }
