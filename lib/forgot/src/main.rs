@@ -5,18 +5,20 @@
 
 extern crate chrono;
 
-use std::collections::HashMap;
-use std::any::Any;
 use chrono::{DateTime, Utc};
-use std::fs::{File, OpenOptions};
-use std::io::{self, Write};
 
-struct Table<'a> {
+use std::{
+    collections::HashMap,
+    fs::{File, OpenOptions},
+    io::Write
+};
+
+struct Table<T> {
     creation:   DateTime<Utc>,
     updated:    DateTime<Utc>,
-    rdb_log:    File,
+    aof_log:    File,
+    data:       HashMap<String, Data<T>>,
     identifier: u64,
-    data: HashMap<&'a str, &'a Data<'a>>,
 }
 
 enum QueryError {
@@ -28,52 +30,46 @@ enum QueryError {
     NotImplemented,
 }
 
-impl<'a> Table<'a> {
-    fn new() -> Self {
-        let mut options = OpenOptions::new();
-
-        options.append(true);
-
-        let file = options.open("google");
-
-        Self {
-            creation:   Utc::now(),
-            updated:    Utc::now(),
-            rdb_log:    file.unwrap(),
-            identifier: 0,
-            data:       HashMap::new(),
-        }
-    }
-
-    fn write(&mut self, key: &'a str, val: &'a Data<'a>) -> QueryError {
-        if !self.data.contains_key(key) {
-            return QueryError::KeyAlreadyExists
-        }
-
-        self.data.insert(key, val);
-
-        return QueryError::WriteSuccess;
-    }
-
-    fn remove(&mut self, key: &'a str, option_val: Option<&'a Data<'a>>) -> QueryError {
-        if let Some(val) = option_val {
-            // implement this later
-            return QueryError::NotImplemented;
-        }
-
-        self.data.remove(key);
-
-        return QueryError::WriteSuccess;
-    }
-}
-
-struct Data<'a> {
+struct Data<T> {
     creation:   DateTime<Utc>,
     updated:    DateTime<Utc>,
+    data:       Box<T>,
     identifier: u64,
-    data:       &'a dyn Any,
+}
+
+impl<T> Table<T> {
+    fn new() -> Self {
+        let time = Utc::now();
+        let file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(time.format("%Y-%m-%dT%H:%M:%SZ").to_string())
+            .expect("failed to open file");
+
+        Self {
+            creation:   time,
+            updated:    time,
+            aof_log:    file,
+            data:       HashMap::new(),
+            identifier: 0,
+        }
+    }
+
+    fn write(&mut self, key: String, val: Data<T>) -> QueryError {
+        if self.data.contains_key(&key) {
+            return QueryError::KeyAlreadyExists;
+        }
+        self.data.insert(key, val);
+        QueryError::WriteSuccess
+    }
+
+    fn remove(&mut self, key: &str) -> QueryError {
+        self.data.remove(key);
+        QueryError::WriteSuccess
+    }
 }
 
 fn main() {
-    let mut table = Table::new();
+    let mut table: Table<i32> = Table::new();
 }
+
