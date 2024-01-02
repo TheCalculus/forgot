@@ -10,7 +10,8 @@ use chrono::{DateTime, Utc};
 use std::{
     collections::HashMap,
     fs::{File, OpenOptions},
-    io::Write
+    io::Write,
+    option,
 };
 
 struct Table<T: std::fmt::Debug + Clone> {
@@ -22,15 +23,22 @@ struct Table<T: std::fmt::Debug + Clone> {
 }
 
 enum QueryError {
-    ReadSuccess,
-    ReadFailure,
-    WriteSuccess,
-    WriteFailure,
+    Success,
+    Failure,
+    Found,
+    NotFound,
     KeyAlreadyExists,
-    NotImplemented,
+    NotImplemented, 
 }
 
-#[derive(Debug, Clone)]
+/* should receive only 
+    &str, Data<T> */
+enum QueryType<T, U> {
+    ByKey(T),
+    ByValue(U),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 struct Data<T: Clone> {
     creation:   DateTime<Utc>,
     updated:    DateTime<Utc>,
@@ -51,7 +59,7 @@ impl<T: Clone> Data<T> {
     }
 }
 
-impl<T: std::fmt::Debug + Clone> Table<T> {
+impl<T: std::fmt::Debug + std::clone::Clone + std::cmp::PartialEq> Table<T> {
     fn new() -> Self {
         let time = Utc::now();
         let file = OpenOptions::new()
@@ -75,20 +83,42 @@ impl<T: std::fmt::Debug + Clone> Table<T> {
         }
         self.data.insert(key.clone(), val.clone());
         writeln!(self.aof_log, "write({}, {:?})", key, val).unwrap_or(());
-        QueryError::WriteSuccess
+        QueryError::Success
     }
 
     fn remove(&mut self, key: &str) -> QueryError {
         self.data.remove(key);
         writeln!(self.aof_log, "remove({})", key).unwrap_or(());
-        QueryError::WriteSuccess
+        QueryError::Success
+    }
+
+    fn get(&mut self, key: String) -> Result<&Data<T>, QueryError> {
+        match self.data.get(&key) {
+            Some(v) => Ok(&v),
+            None    => Err(QueryError::NotFound),
+        }
+    }
+
+    fn query(&mut self, key: QueryType<String, Data<T>>) -> Result<&Data<T>, QueryError> {
+        match key {
+            QueryType::ByKey(k) => {
+                // shouldn't use query for fetching keys, but implementing anyway
+                self.get(k)
+            },
+            QueryType::ByValue(v) => {
+                for (key, value) in &self.data {
+                    if *value != v { continue; }
+                    return Ok(&self.data[key]);
+                }
+                Err(QueryError::NotFound)
+            }
+        }
     }
 }
 
 fn main() {
-    let mut table: Table<i32> = Table::new();
-    let data: Data<i32> = Data::from(0);
+    let mut table: Table<&str> = Table::new();
+    let data: Data<&str> = Data::from("hope its a good one");
 
-    table.write("nice_key".to_string(), data);
-    table.remove("nice_key");
+    table.write("happy_new_year".to_string(), data);
 }
