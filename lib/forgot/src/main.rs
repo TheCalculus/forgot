@@ -13,7 +13,7 @@ use std::{
     io::Write
 };
 
-struct Table<T> {
+struct Table<T: std::fmt::Debug + Clone> {
     creation:   DateTime<Utc>,
     updated:    DateTime<Utc>,
     aof_log:    File,
@@ -30,14 +30,28 @@ enum QueryError {
     NotImplemented,
 }
 
-struct Data<T> {
+#[derive(Debug, Clone)]
+struct Data<T: Clone> {
     creation:   DateTime<Utc>,
     updated:    DateTime<Utc>,
     data:       Box<T>,
     identifier: u64,
 }
 
-impl<T> Table<T> {
+impl<T: Clone> Data<T> {
+    fn from(data: T) -> Self {
+        let time = Utc::now();
+        
+        Self {
+            creation:  time,
+            updated:   time,
+            data:      Box::new(data),
+            identifier: 0,
+        }
+    }
+}
+
+impl<T: std::fmt::Debug + Clone> Table<T> {
     fn new() -> Self {
         let time = Utc::now();
         let file = OpenOptions::new()
@@ -59,17 +73,22 @@ impl<T> Table<T> {
         if self.data.contains_key(&key) {
             return QueryError::KeyAlreadyExists;
         }
-        self.data.insert(key, val);
+        self.data.insert(key.clone(), val.clone());
+        writeln!(self.aof_log, "write({}, {:?})", key, val).unwrap_or(());
         QueryError::WriteSuccess
     }
 
     fn remove(&mut self, key: &str) -> QueryError {
         self.data.remove(key);
+        writeln!(self.aof_log, "remove({})", key).unwrap_or(());
         QueryError::WriteSuccess
     }
 }
 
 fn main() {
     let mut table: Table<i32> = Table::new();
-}
+    let data: Data<i32> = Data::from(0);
 
+    table.write("nice_key".to_string(), data);
+    table.remove("nice_key");
+}
