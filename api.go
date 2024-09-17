@@ -1,43 +1,40 @@
 package main
 
 import (
-	// "net/http"
+	"net/http"
 	"github.com/gin-gonic/gin"
 )
 
-type Controller struct{}
-func (t *Controller) Default(c *gin.Context) {
-	c.JSON(200, gin.H{"response": "here it is"})
+type User struct {
+    ID        string  `json:"id"`
+    Name      string  `json:"name"`
+    Email     string  `json:"email"`
+    Password  string  `json:"password"`
 }
 
-func APIValidation() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		secret := c.GetHeader("secret")
+type UserRegistrationInput struct {
+    Name      string  `json:"name"`
+    Email     string  `json:"email"`
+    Password  string  `json:"password"`
+}
 
-		if secret != "ooga_booga" {
-			c.JSON(401, gin.H{"response": "bro tf up with ur api key 🤣"})
-			c.Abort()
-			
-			return
-		}
+func createUser(c *gin.Context) {
+    var input User
 
-		c.Next()
-	}
+    if err := c.ShouldBindJSON(&input); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    }
+
+    _ = User {
+        Name:     input.Name,
+        Password: input.Password,
+    }
 }
 
 func main() {
-	router := gin.Default()
+    router := gin.Default()
+    
+    router.POST("/auth", createUser)
 
-	v1 := router.Group("/api/v1")
-	v1.Use(APIValidation())
-	{
-		controller := new(Controller)
-		v1.GET("/default", controller.Default)
-	}
-
-	router.NoRoute(func(c *gin.Context) {
-		c.JSON(404, gin.H{"response": "not found"})
-	})
-
-	router.Run("localhost:8080")
+    router.Run("localhost:8080")
 }

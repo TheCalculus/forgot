@@ -1,2 +1,0 @@
-new(user::cookie, { username, email, password })*
-write(abcd-efgh, { jacob, jacob@email.com, unga_bunga })
