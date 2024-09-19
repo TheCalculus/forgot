@@ -1,4 +1,4 @@
-package forgot
+package internal
 
 import (
     "time"
