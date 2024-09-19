@@ -1,4 +1,4 @@
-package internal
+package server
 
 import (
     "time"
@@ -34,4 +34,5 @@ func CreateUser(input UserRegistrationInput) (User, error) {
 
 func (u *User) Delete() error {
     // remove user from chosen database
+    return nil
 }

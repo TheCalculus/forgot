@@ -1,7 +1,7 @@
 package main
 
 import (
-    "github.com/thecalculus/forgot/internal"
+    forgot "forgot/internal/server"
 )
 
 func main() {
