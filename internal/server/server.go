@@ -1,4 +1,4 @@
-package forgot
+package server
 
 import (
 	"net/http"
